@@ -32,7 +32,6 @@ urls: array containing the mapping between the locale and the relative url of yo
 ```
 <?php
 
-<?php
 return [
     'defaultLanguage' => 'en-GB',
     'urls' =>  [
@@ -45,7 +44,6 @@ return [
         'en' =>    '/en/'
     ]
 ];
-
 
 ```
 
