@@ -17,7 +17,7 @@
     "docs": "https://github.com/LiquidBarcelona/craftcms-language-redirect/blob/master/README.md"
   },
   "require": {
-    "craftcms/cms": "^4",
+    "craftcms/cms": "^5",
     "koenster/php-language-detection": "^1.0"
   },
   "autoload": {
@@ -29,5 +29,11 @@
     "name": "Simple Language Redirector",
     "handle": "language-redirect",
     "class": "liquidbcn\\languageredirect\\LanguageRedirector"
+  },
+  "config": {
+    "allow-plugins": {
+      "yiisoft/yii2-composer": true,
+      "craftcms/plugin-installer": true
+    }
   }
 }
