@@ -23,7 +23,7 @@ class LanguageRedirector extends \craft\base\Plugin
         $default = $this->getSettings()->defaultLanguage;
         $urls = $this->getSettings()->urls;
 
-        if(!empty($urls)) {
+        if(!empty($urls) && isset($_SERVER['REQUEST_URI'])) {
             $browserLoc = new \koenster\PHPLanguageDetection\BrowserLocalization();
             $browserLoc->setAvailable(array_keys($urls))
                 ->setDefault($default)
