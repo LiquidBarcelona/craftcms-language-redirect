@@ -10,7 +10,7 @@ Redirects users to localized URLs based on browser language preferences. When a 
 ## Installation
 
 ```bash
-composer require liquidbcn/craft-language-redirect
+composer require liquidbcn/craftcms-language-redirect
 ```
 
 Then go to Settings → Plugins and click "Install".
