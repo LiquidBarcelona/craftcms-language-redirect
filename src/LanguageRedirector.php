@@ -3,44 +3,57 @@ namespace liquidbcn\languageredirect;
 
 use Craft;
 use craft\base\Model;
+use craft\base\Plugin;
+use koenster\PHPLanguageDetection\BrowserLocalization;
 use liquidbcn\languageredirect\models\Settings;
-use yii\web\HttpException;
 
-class LanguageRedirector extends \craft\base\Plugin
+class LanguageRedirector extends Plugin
 {
     public bool $hasCpSettings = true;
 
-    public function init()
+    public function init(): void
     {
         parent::init();
-        $this->redirect();
+
+        if (!Craft::$app->getRequest()->getIsConsoleRequest()) {
+            $this->redirect();
+        }
     }
 
-    protected function redirect() {
+    protected function redirect(): void
+    {
+        $request = Craft::$app->getRequest();
+        $method = $request->getMethod();
 
-        $browser = $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? null;
+        if ($method !== 'GET' && $method !== 'HEAD') {
+            return;
+        }
 
-        $default = $this->getSettings()->defaultLanguage;
-        $urls = $this->getSettings()->urls;
+        $requestUrl = $request->getUrl();
+        $url = parse_url($requestUrl);
 
-        if(!empty($urls) && isset($_SERVER['REQUEST_URI'])) {
-            $browserLoc = new \koenster\PHPLanguageDetection\BrowserLocalization();
-            $browserLoc->setAvailable(array_keys($urls))
-                ->setDefault($default)
-                ->setPreferences($browser);
-            $url = parse_url($_SERVER['REQUEST_URI']);
+        if (!empty($url['path']) && $url['path'] !== '/') {
+            return;
+        }
 
-            if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        $settings = $this->getSettings();
+        $urls = $settings->getUrlsAsAssociativeArray();
 
-                if(empty($url['path']) || $url['path'] === '/') {
-                    $language = $browserLoc->detect();
-                    if(isset($urls[$language])) {
-                        header('HTTP/1.1 301 Moved Permanently');
-                        header('Location: ' . $urls[$language]);
-                        exit();
-                    }
-                }
-            }
+        if (empty($urls)) {
+            return;
+        }
+
+        $browser = $request->getHeaders()->get('accept-language');
+        $browserLoc = new BrowserLocalization();
+        $browserLoc->setAvailable(array_keys($urls))
+            ->setDefault($settings->defaultLanguage)
+            ->setPreferences($browser);
+
+        $language = $browserLoc->detect();
+
+        if (isset($urls[$language])) {
+            Craft::$app->getResponse()->redirect($urls[$language], 301)->send();
+            Craft::$app->end();
         }
     }
 
@@ -49,16 +62,11 @@ class LanguageRedirector extends \craft\base\Plugin
         return new Settings();
     }
 
-    /**
-     * @inheritdoc
-     */
-    protected function settingsHtml(): string
+    protected function settingsHtml(): ?string
     {
-        return Craft::$app->view->renderTemplate(
+        return Craft::$app->getView()->renderTemplate(
             'language-redirect/settings',
-            [
-                'settings'  => $this->getSettings(),
-            ]
+            ['settings' => $this->getSettings()]
         );
     }
 }
