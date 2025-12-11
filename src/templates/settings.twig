@@ -1,0 +1,34 @@
+{% import '_includes/forms.twig' as forms %}
+
+{{ forms.textField({
+    label: 'Default Language'|t('language-redirect'),
+    instructions: 'The fallback locale code if the browser language is not in the URL list (e.g., en-GB, es-ES)'|t('language-redirect'),
+    id: 'defaultLanguage',
+    name: 'defaultLanguage',
+    value: settings.defaultLanguage,
+    required: true,
+}) }}
+
+{{ forms.editableTableField({
+    label: 'Language URLs'|t('language-redirect'),
+    instructions: 'Map browser locale codes to your site URLs. Users visiting the root path will be redirected based on their browser language.'|t('language-redirect'),
+    id: 'urls',
+    name: 'urls',
+    cols: {
+        locale: {
+            heading: 'Locale'|t('language-redirect'),
+            type: 'singleline',
+            placeholder: 'en-GB',
+        },
+        url: {
+            heading: 'URL'|t('language-redirect'),
+            type: 'singleline',
+            placeholder: '/en/',
+        },
+    },
+    rows: settings.getUrlsAsTableRows(),
+    allowAdd: true,
+    allowDelete: true,
+    allowReorder: true,
+    minRows: 1,
+}) }}
