@@ -1,52 +1,65 @@
 # Language Redirect for Craft CMS
-This plugin allows you redirect your users to the desired url based on user browser preferences
+
+Redirects users to localized URLs based on browser language preferences. When a user visits your site's root path (`/`), the plugin detects their browser language and redirects them to the appropriate localized URL.
 
 ## Requirements
 
-This plugin requires Craft CMS 4.0.0 or later
+- Craft CMS 5.0.0 or later
+- PHP 8.2 or later
 
 ## Installation
 
-To install the plugin, follow these instructions.
-
-1. Open your terminal and go to your Craft project:
-
-        cd /path/to/project
-
-2. Then tell Composer to load the plugin:
-
-        composer require liquidbcn/craftcms-language-redirect
-
-3. In the Control Panel, go to Settings → Plugins and click the “Install” button for this plugin.
-
-
-## Configuring the plugin
-
-You can configure the plugin creating a file under your config folder named language-redirect.php with the desired settings.
-
-defaultLanguage: default locale if none is detected
-
-urls: array containing the mapping between the locale and the relative url of your language base path
-
-*Example*
+```bash
+composer require liquidbcn/craft-language-redirect
 ```
+
+Then go to Settings → Plugins and click "Install".
+
+## Configuration
+
+### Option 1: Control Panel (recommended)
+
+Go to Settings → Plugins → Language Redirect and configure:
+
+- **Default Language**: Fallback locale if browser language isn't in your URL list (e.g., `en-GB`)
+- **Language URLs**: Map locale codes to your site URLs
+
+### Option 2: Config file
+
+Create `config/language-redirect.php`:
+
+```php
 <?php
 
 return [
     'defaultLanguage' => 'en-GB',
-    'urls' =>  [
+    'urls' => [
         'ca'    => '/ca/',
         'ca-ES' => '/ca/',
         'es'    => '/es/',
         'es-ES' => '/es/',
         'en-GB' => '/en/',
         'en-US' => '/en/',
-        'en' =>    '/en/'
-    ]
+        'en'    => '/en/',
+    ],
 ];
-
 ```
 
+Config file settings take precedence over Control Panel settings.
 
-Brought to you by
-<a href="https://liquidbcn.com" target="_blank">Liquid Studio</a>
+## How it works
+
+1. User visits your site root (`/`)
+2. Plugin reads the `Accept-Language` header from the browser
+3. Matches against your configured locale mappings
+4. Performs a 301 redirect to the corresponding URL
+
+The plugin only triggers on GET and HEAD requests to the root path.
+
+## License
+
+MIT
+
+---
+
+Developed by [Liquid Studio](https://liquidbcn.com)
