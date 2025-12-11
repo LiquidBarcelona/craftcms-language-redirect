@@ -1,34 +1,239 @@
 {% import '_includes/forms.twig' as forms %}
 
-{{ forms.textField({
-    label: 'Default Language'|t('language-redirect'),
-    instructions: 'The fallback locale code if the browser language is not in the URL list (e.g., en-GB, es-ES)'|t('language-redirect'),
-    id: 'defaultLanguage',
-    name: 'defaultLanguage',
-    value: settings.defaultLanguage,
-    required: true,
-}) }}
+{% set domainsData = settings.getSitesGroupedByDomain() %}
 
-{{ forms.editableTableField({
-    label: 'Language URLs'|t('language-redirect'),
-    instructions: 'Map browser locale codes to your site URLs. Users visiting the root path will be redirected based on their browser language.'|t('language-redirect'),
-    id: 'urls',
-    name: 'urls',
-    cols: {
-        locale: {
-            heading: 'Locale'|t('language-redirect'),
-            type: 'singleline',
-            placeholder: 'en-GB',
-        },
-        url: {
-            heading: 'URL'|t('language-redirect'),
-            type: 'singleline',
-            placeholder: '/en/',
-        },
-    },
-    rows: settings.getUrlsAsTableRows(),
-    allowAdd: true,
-    allowDelete: true,
-    allowReorder: true,
-    minRows: 1,
-}) }}
+<style>
+.lr-domain-block {
+    border: 1px solid #cdd8e4;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 24px;
+    background: #fff;
+}
+.lr-domain-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e3e5e8;
+}
+.lr-domain-header .field {
+    margin: 0 !important;
+}
+.lr-domain-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1a1a1a;
+}
+.lr-domain-sites {
+    margin-bottom: 16px;
+}
+.lr-domain-site-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+.lr-domain-site-row code {
+    font-weight: 600;
+    color: #3b5998;
+    background: #f0f4f8;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+.lr-domain-site-row .lr-site-names {
+    color: #666;
+}
+.lr-domain-warning {
+    color: #92400e;
+    background: #fef3c7;
+    padding: 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+.lr-domain-info {
+    color: #1e40af;
+    background: #dbeafe;
+    padding: 12px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+.lr-domain-content {
+    margin-top: 16px;
+}
+.lr-auto-fill-btn {
+    margin-top: -8px;
+    margin-bottom: 16px;
+}
+.lr-switch-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+</style>
+
+{% for host, domain in domainsData %}
+    {% set domainConfig = settings.getDomainConfig(host) %}
+    {% set isEnabled = domainConfig.enabled ?? false %}
+    {% set domainId = 'domain-' ~ loop.index %}
+    {% set isUnknown = host == 'unknown' %}
+    {% set canEnable = domain.hasMultipleLanguages and not isUnknown %}
+
+    {# Group sites by language #}
+    {% set sitesByLanguage = {} %}
+    {% for site in domain.sites %}
+        {% set lang = site.language %}
+        {% if sitesByLanguage[lang] is not defined %}
+            {% set sitesByLanguage = sitesByLanguage|merge({ (lang): { path: site.path, names: [] } }) %}
+        {% endif %}
+        {% set sitesByLanguage = sitesByLanguage|merge({
+            (lang): sitesByLanguage[lang]|merge({ names: sitesByLanguage[lang].names|merge([site.name]) })
+        }) %}
+    {% endfor %}
+
+    <div class="lr-domain-block" data-domain="{{ host }}">
+        <div class="lr-domain-header">
+            <span class="lr-domain-name">{{ host }}</span>
+            <div class="{{ not canEnable ? 'lr-switch-disabled' : '' }}">
+                {{ forms.lightswitchField({
+                    id: domainId ~ '-enabled',
+                    name: 'domains[' ~ host ~ '][enabled]',
+                    on: isEnabled and canEnable,
+                    small: true,
+                    toggle: '#' ~ domainId ~ '-content',
+                    disabled: not canEnable,
+                }) }}
+            </div>
+        </div>
+
+        {% if isUnknown %}
+            <div class="lr-domain-warning">
+                Could not detect domain from site URLs. Please configure Base URL in Settings → Sites.
+            </div>
+        {% endif %}
+
+        <div class="lr-domain-sites">
+            {% for lang, data in sitesByLanguage %}
+                <div class="lr-domain-site-row">
+                    <code>{{ lang }}</code>
+                    <span>→</span>
+                    <code>{{ data.path }}</code>
+                    <span class="lr-site-names">({{ data.names|join(', ') }})</span>
+                </div>
+            {% endfor %}
+        </div>
+
+        {% if not domain.hasMultipleLanguages %}
+            <div class="lr-domain-info">
+                Only 1 language detected. Language redirect is not available for this domain.
+            </div>
+        {% elseif canEnable %}
+            <div class="lr-domain-content" id="{{ domainId }}-content" {% if not isEnabled %}class="hidden"{% endif %}>
+                {% set domainUrls = domainConfig.urls ?? [] %}
+
+                {{ forms.selectField({
+                    label: 'Default Language'|t('language-redirect'),
+                    instructions: 'Fallback language if browser language is not in the list'|t('language-redirect'),
+                    id: domainId ~ '-defaultLanguage',
+                    name: 'domains[' ~ host ~ '][defaultLanguage]',
+                    options: domain.languages|map(lang => { label: lang, value: lang }),
+                    value: domainConfig.defaultLanguage ?? (domain.languages[0] ?? ''),
+                }) }}
+
+                {{ forms.editableTableField({
+                    label: 'URL Mappings'|t('language-redirect'),
+                    instructions: 'Map browser locale codes to URL paths. Use short codes (en, es) to match all regional variants (en-US, en-GB). Add specific codes (es-MX) for regional overrides.'|t('language-redirect'),
+                    id: domainId ~ '-urls',
+                    name: 'domains[' ~ host ~ '][urls]',
+                    cols: {
+                        locale: {
+                            heading: 'Locale'|t('language-redirect'),
+                            type: 'singleline',
+                            placeholder: 'en',
+                        },
+                        url: {
+                            heading: 'URL'|t('language-redirect'),
+                            type: 'singleline',
+                            placeholder: '/',
+                        },
+                    },
+                    rows: domainUrls,
+                    allowAdd: true,
+                    allowDelete: true,
+                    allowReorder: true,
+                    minRows: 1,
+                }) }}
+
+                <button type="button" class="btn lr-auto-fill-btn" data-domain="{{ host }}" data-domain-id="{{ domainId }}">
+                    {{ 'Auto-fill from detected sites'|t('language-redirect') }}
+                </button>
+            </div>
+        {% endif %}
+    </div>
+{% endfor %}
+
+<script>
+(function() {
+    var domainsData = {{ domainsData|json_encode|raw }};
+
+    // Auto-fill button - uses unique language/path combinations
+    document.querySelectorAll('.lr-auto-fill-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var host = this.dataset.domain;
+            var domainId = this.dataset.domainId;
+            var domain = domainsData[host];
+
+            if (!domain || !domain.sites) {
+                Craft.cp.displayError('No sites found for this domain');
+                return;
+            }
+
+            // Get unique language/path combinations
+            var uniqueSites = [];
+            var seen = {};
+            domain.sites.forEach(function(site) {
+                var key = site.language + '|' + site.path;
+                if (!seen[key]) {
+                    seen[key] = true;
+                    uniqueSites.push(site);
+                }
+            });
+
+            var $table = $('#settings-' + domainId + '-urls');
+            var editableTable = $table.data('editable-table');
+
+            if (!editableTable) {
+                Craft.cp.displayError('Could not find table');
+                return;
+            }
+
+            // Remove extra rows
+            var $allRows = editableTable.$tbody.children('tr');
+            for (var i = $allRows.length - 1; i > 0; i--) {
+                $allRows.eq(i).find('button.delete').trigger('click');
+            }
+
+            // Add unique sites
+            uniqueSites.forEach(function(site, siteIndex) {
+                if (siteIndex > 0) {
+                    editableTable.addRow(false);
+                }
+
+                var $row = editableTable.$tbody.children('tr').eq(siteIndex);
+                var $localeTextarea = $row.find('textarea[name*="[locale]"]');
+                var $urlTextarea = $row.find('textarea[name*="[url]"]');
+
+                $localeTextarea.val(site.language);
+                $urlTextarea.val(site.path);
+
+                $localeTextarea.prev('.editable-table-preview').text(site.language);
+                $urlTextarea.prev('.editable-table-preview').text(site.path);
+            });
+
+            Craft.cp.displayNotice('URLs filled from detected sites');
+        });
+    });
+})();
+</script>
