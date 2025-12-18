@@ -10,10 +10,13 @@ class LanguageRedirector extends \craft\base\Plugin
 {
     public bool $hasCpSettings = true;
 
-    public function init()
+    public function init(): void
     {
         parent::init();
-        $this->redirect();
+
+        if (!Craft::$app->getRequest()->getIsConsoleRequest()) {
+            $this->redirect();
+        }
     }
 
     protected function redirect() {
