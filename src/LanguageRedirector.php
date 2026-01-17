@@ -1,4 +1,5 @@
 <?php
+
 namespace liquidbcn\languageredirect;
 
 use Craft;
@@ -37,16 +38,23 @@ class LanguageRedirector extends Plugin
         }
 
         $settings = $this->getSettings();
-        $urls = $settings->getUrlsAsAssociativeArray();
+
+        if (!$settings->isCurrentDomainEnabled()) {
+            return;
+        }
+
+        $urls = $settings->getUrlsForCurrentDomain();
 
         if (empty($urls)) {
             return;
         }
 
+        $defaultLanguage = $settings->getDefaultLanguageForCurrentDomain();
+
         $browser = $request->getHeaders()->get('accept-language');
         $browserLoc = new BrowserLocalization();
         $browserLoc->setAvailable(array_keys($urls))
-            ->setDefault($settings->defaultLanguage)
+            ->setDefault($defaultLanguage)
             ->setPreferences($browser);
 
         $language = $browserLoc->detect();
